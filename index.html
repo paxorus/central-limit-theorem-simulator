@@ -1,0 +1,129 @@
+<html>
+<head>
+   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+</head>
+<body>
+
+<center>
+	<div id="tester" style="width:1000px;height:400px;margin-top:100px;"></div>
+</center>
+
+
+<script>
+
+const ORIGINAL_DISTRIBUTION_POPULATION_SIZE = 100;// Size of original distribution; any number works
+const ORIGINAL_DISTRIBUTION_SAMPLE_SIZE = 1000;// Size of sample from original distribution to mean; minimal impact to sampling distribution after 10
+const SAMPLING_DISTRIBUTION_SAMPLE_SIZE = 1e5;// Size of sample from means to sampling distribution; approaches Infinity, ideal resolution after 100,000
+
+function sample(distribution) {
+	const sample = [];
+	for (let i = 0; i < ORIGINAL_DISTRIBUTION_SAMPLE_SIZE; i ++) {
+		sample.push(distribution[Math.floor(Math.random() * distribution.length)]);
+	}
+	return sample;
+}
+
+
+/**
+ * Mean. Valid for population or sample.
+ * μ(X) = Σx / n 
+ */
+function mean(distribution) {
+	const total = distribution.reduce((acc, x) => acc + x);
+
+	return total / distribution.length;
+}
+
+/**
+ * Population standard deviation.
+ * σ(X) = sqrt(Σ(x - μ)^2 / n)
+ */
+function standardDeviation(distribution, mean) {
+	const numerator = distribution.reduce((acc, x) => acc + Math.pow(x - mean, 2), 0);
+
+	return Math.sqrt(numerator / distribution.length);
+}
+
+/**
+ * Probability density function for Normal distribution.
+ * Normal(x) = e^(-(x - μ)^2/2σ^2) / (σ * sqrt(2π))
+ */
+function normalPdf(x, mu, sigma) {
+	const exponent = - Math.pow((x - mu) / sigma, 2) / 2;
+
+	return Math.pow(Math.E, exponent) / (sigma * Math.sqrt(2 * Math.PI));
+}
+
+function computeAlignment(sampling, theoreticalMean, theoreticalStdDev) {
+	// Bin the sampling distribution, as Plotly has done for the visualization.
+	const NUMBER_OF_BINS = 100;
+	const min = sampling.reduce((acc, x) => Math.min(acc, x));
+	const max = sampling.reduce((acc, x) => Math.max(acc, x));
+	const bins = new Array(NUMBER_OF_BINS).fill(0);
+	const binWidth = (max - min + 1) / NUMBER_OF_BINS;
+	sampling.forEach(x => {
+		const binIndex = Math.floor((x - min) / binWidth);
+		bins[binIndex] ++;
+	});
+
+	const mu = theoreticalMean;
+	const sigma = theoreticalStdDev;
+
+	const [intersection, union] = bins.map((x, i) => {
+
+		const idealFrequency = normalPdf((i + 0.5) * binWidth + min, mu, sigma) * binWidth;
+		
+		const actualFrequency = x / sampling.length;
+		
+		return [
+			Math.min(actualFrequency, idealFrequency),
+			Math.max(actualFrequency, idealFrequency)
+		];
+	}).reduce((acc, ratio) => {
+		return [acc[0] + ratio[0], acc[1] + ratio[1]];
+	}, [0, 0]);
+
+	return intersection / union;
+}
+
+function main() {
+	// Skewed-right distribution
+	const originalDistribution = [];
+	for (let i = 0; i < ORIGINAL_DISTRIBUTION_POPULATION_SIZE; i ++) {
+		originalDistribution.push(i * i);
+	}
+
+	// Generate sampling distribution.
+	const samplingDistribution = [];
+	for (let i = 0; i < SAMPLING_DISTRIBUTION_SAMPLE_SIZE; i ++) {
+		const sampleMean = mean(sample(originalDistribution));
+		samplingDistribution.push(sampleMean);
+	}
+
+	const theoreticalMean = mean(originalDistribution);
+	const theoreticalStdDev = standardDeviation(originalDistribution, theoreticalMean) / Math.sqrt(ORIGINAL_DISTRIBUTION_SAMPLE_SIZE);
+	const samplingMean = mean(samplingDistribution);
+	const samplingStdDev = standardDeviation(samplingDistribution, samplingMean);
+
+	console.log("Actual mean:", samplingMean);
+	console.log("Theoretical mean:", theoreticalMean);
+	console.log("Actual std dev:", samplingStdDev);
+	console.log("Theoretical std dev:", theoreticalStdDev);
+
+	// Plot
+	const series = {
+	    x: samplingDistribution,
+	    type: 'histogram',
+	};
+	Plotly.newPlot('tester', [series]);
+
+	// Compute alignment with ideal Normal curve.
+	const alignment = computeAlignment(samplingDistribution, theoreticalMean, theoreticalStdDev);
+	const alignmentPercentage = (alignment * 100).toFixed(3);
+	console.log(`Alignment: ${alignmentPercentage} %`);
+}
+
+main();
+</script>
+</body>
+</html>
