@@ -64,25 +64,15 @@ function normalPdf(x, mu, sigma) {
 }
 
 function computeAlignment(sampling, theoreticalMean, theoreticalStdDev) {
-	// Bin the sampling distribution, as Plotly has done for the visualization.
-	const NUMBER_OF_BINS = 100;
-	const min = sampling.reduce((acc, x) => Math.min(acc, x));
-	const max = sampling.reduce((acc, x) => Math.max(acc, x));
-	const bins = new Array(NUMBER_OF_BINS).fill(0);
-	const binWidth = (max - min + 1) / NUMBER_OF_BINS;
-	sampling.forEach(x => {
-		const binIndex = Math.floor((x - min) / binWidth);
-		bins[binIndex] ++;
-	});
+	const binWidth = sampling[0].end - sampling[0].start;
 
 	const mu = theoreticalMean;
 	const sigma = theoreticalStdDev;
 
-	const [intersection, union] = bins.map((x, i) => {
+	const [intersection, union] = sampling.map(({center, count}) => {
 
-		const idealFrequency = normalPdf((i + 0.5) * binWidth + min, mu, sigma) * binWidth;
-		
-		const actualFrequency = x / sampling.length;
+		const idealFrequency = normalPdf(center, mu, sigma) * binWidth;
+		const actualFrequency = count / SAMPLING_DISTRIBUTION_SAMPLE_SIZE;
 		
 		return [
 			Math.min(actualFrequency, idealFrequency),
@@ -186,8 +176,10 @@ function main() {
 		"width": 700
 	});
 
+	const samplingFrequencies = binData(samplingDistribution);
+
 	// Compute alignment with ideal Normal curve.
-	const alignment = computeAlignment(samplingDistribution, theoreticalMean, theoreticalStdDev);
+	const alignment = computeAlignment(samplingFrequencies, theoreticalMean, theoreticalStdDev);
 	const alignmentPercentage = (alignment * 100).toFixed(2);
 
 	// Plot sampling distribution.
@@ -196,7 +188,6 @@ function main() {
 		`normalcy = ${alignmentPercentage}%`
 	];
 
-	const samplingFrequencies = binData(samplingDistribution);
 	vegaEmbed("#sampling-distribution", {
 		"title": {
 			"text": "Sampling Distribution",
