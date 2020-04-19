@@ -1,18 +1,27 @@
 <html>
 <head>
-   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+	<!-- jQuery -->
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+	<!-- Plotly -->
+	<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+	<style>
+		body {font-family: sans-serif;}
+	</style>
 </head>
 <body>
 
 <center>
-	<div id="tester" style="width:1000px;height:400px;margin-top:100px;"></div>
+	<div id="population-distribution" style="width:800px;height:300px;"></div>
+	<div id="sampling-distribution" style="width:800px;height:300px;"></div>
+
+	<div id="alignment"></div>
 </center>
 
 
 <script>
 
 const ORIGINAL_DISTRIBUTION_POPULATION_SIZE = 100;// Size of original distribution; any number works
-const ORIGINAL_DISTRIBUTION_SAMPLE_SIZE = 1000;// Size of sample from original distribution to mean; minimal impact to sampling distribution after 10
+const ORIGINAL_DISTRIBUTION_SAMPLE_SIZE = 100;// Size of sample from original distribution to mean; minimal impact to sampling distribution after 10
 const SAMPLING_DISTRIBUTION_SAMPLE_SIZE = 1e5;// Size of sample from means to sampling distribution; approaches Infinity, ideal resolution after 100,000
 
 function sample(distribution) {
@@ -101,26 +110,33 @@ function main() {
 	}
 
 	const theoreticalMean = mean(originalDistribution);
-	const theoreticalStdDev = standardDeviation(originalDistribution, theoreticalMean) / Math.sqrt(ORIGINAL_DISTRIBUTION_SAMPLE_SIZE);
+	const originalStdDev = standardDeviation(originalDistribution, theoreticalMean);
+	const theoreticalStdDev = originalStdDev / Math.sqrt(ORIGINAL_DISTRIBUTION_SAMPLE_SIZE);
 	const samplingMean = mean(samplingDistribution);
 	const samplingStdDev = standardDeviation(samplingDistribution, samplingMean);
 
-	console.log("Actual mean:", samplingMean);
-	console.log("Theoretical mean:", theoreticalMean);
-	console.log("Actual std dev:", samplingStdDev);
-	console.log("Theoretical std dev:", theoreticalStdDev);
-
 	// Plot
-	const series = {
-	    x: samplingDistribution,
-	    type: 'histogram',
-	};
-	Plotly.newPlot('tester', [series]);
+	const subtitle = `μ = ${theoreticalMean.toFixed(2)}, σ = ${originalStdDev.toFixed(2)}, n = ${originalDistribution.length}`
+		+ `<br>σ / √(nMeans) = ${theoreticalStdDev.toFixed(2)}`;
+	Plotly.newPlot('population-distribution', [{
+		x: originalDistribution,
+		type: "histogram"
+	}], {
+		title: "Population Distribution<br><span style='font-size: 14px; color: #777'>" + subtitle + "</span>"
+	});
+
+	const subtitle2 = `μ = ${samplingMean.toFixed(2)}, σ = ${samplingStdDev.toFixed(2)}, n = ${samplingDistribution.length}`;
+	const x = Plotly.newPlot('sampling-distribution', [{
+		x: samplingDistribution,
+		type: "histogram"
+	}], {
+		title: "Sampling Distribution<br><span style='font-size: 14px; color: #777'>" + subtitle2 + "</span>",
+	});
 
 	// Compute alignment with ideal Normal curve.
 	const alignment = computeAlignment(samplingDistribution, theoreticalMean, theoreticalStdDev);
-	const alignmentPercentage = (alignment * 100).toFixed(3);
-	console.log(`Alignment: ${alignmentPercentage} %`);
+	const alignmentPercentage = (alignment * 100).toFixed(2);
+	$("#alignment").text(`Alignment: ${alignmentPercentage} %`);
 }
 
 main();
