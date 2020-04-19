@@ -2,8 +2,11 @@
 <head>
 	<!-- jQuery -->
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
-	<!-- Plotly -->
-	<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+	<!-- Vega-Lite -->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5.10.1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@4.10.4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.5.2"></script>
+
 	<style>
 		body {font-family: sans-serif;}
 	</style>
@@ -11,10 +14,8 @@
 <body>
 
 <center>
-	<div id="population-distribution" style="width:800px;height:300px;"></div>
-	<div id="sampling-distribution" style="width:800px;height:300px;"></div>
-
-	<div id="alignment"></div>
+	<div id="population-distribution"></div>
+	<div id="sampling-distribution" style="margin-top: 20px"></div>
 </center>
 
 
@@ -31,7 +32,6 @@ function sample(distribution) {
 	}
 	return sample;
 }
-
 
 /**
  * Mean. Valid for population or sample.
@@ -95,6 +95,58 @@ function computeAlignment(sampling, theoreticalMean, theoreticalStdDev) {
 	return intersection / union;
 }
 
+function binData(dataArray) {
+	const NUMBER_OF_BINS = 25;
+	const min = dataArray.reduce((acc, x) => Math.min(acc, x));
+	const max = dataArray.reduce((acc, x) => Math.max(acc, x));
+	const bins = new Array(NUMBER_OF_BINS).fill(0);
+	const binWidth = Math.ceil((max - min + 1) / NUMBER_OF_BINS);
+
+	dataArray.forEach(x => {
+		const binIndex = Math.floor((x - min) / binWidth);
+		bins[binIndex] ++;
+	});
+
+	return bins.map((x, i) => ({
+		start: i * binWidth + min,
+		center: (i + 0.5) * binWidth + min,
+		end: (i + 1) * binWidth + min,
+		count: x
+	}));
+}
+
+function getHistogramPlotSpec(histogramData) {
+	return {
+		"data": {
+			"values": histogramData
+		},
+		"mark": "bar",
+		"encoding": {
+			"x": {
+				"field": "start",
+				"bin": {"binned": true, "step": 2},
+				"type": "quantitative",
+				"axis": {"title": null}
+			},
+			"x2": {"field": "end"},
+			"y": {"field": "count", "type": "quantitative"}
+		}
+	};
+}
+
+function getLinePlotSpec(lineData) {
+	return {
+		"data": {
+			"values": lineData
+		},
+		"mark": {"type": "line", "stroke": "#85A9C5"},
+		"encoding": {
+			"x": {"field": "center", "type": "quantitative"},
+			"y": {"field": "count", "type": "quantitative"}
+		}
+	};
+}
+
 function main() {
 	// Skewed-right distribution
 	const originalDistribution = [];
@@ -115,28 +167,51 @@ function main() {
 	const samplingMean = mean(samplingDistribution);
 	const samplingStdDev = standardDeviation(samplingDistribution, samplingMean);
 
-	// Plot
-	const subtitle = `μ = ${theoreticalMean.toFixed(2)}, σ = ${originalStdDev.toFixed(2)}, n = ${originalDistribution.length}`
-		+ `<br>σ / √(nMeans) = ${theoreticalStdDev.toFixed(2)}`;
-	Plotly.newPlot('population-distribution', [{
-		x: originalDistribution,
-		type: "histogram"
-	}], {
-		title: "Population Distribution<br><span style='font-size: 14px; color: #777'>" + subtitle + "</span>"
-	});
+	// Plot population distribution.
+	const subtitle = [
+		`μ = ${theoreticalMean.toFixed(2)}, σ = ${originalStdDev.toFixed(2)}, n = ${originalDistribution.length}`,
+		`σ / √(nMeans) = ${theoreticalStdDev.toFixed(2)}`
+	];
 
-	const subtitle2 = `μ = ${samplingMean.toFixed(2)}, σ = ${samplingStdDev.toFixed(2)}, n = ${samplingDistribution.length}`;
-	const x = Plotly.newPlot('sampling-distribution', [{
-		x: samplingDistribution,
-		type: "histogram"
-	}], {
-		title: "Sampling Distribution<br><span style='font-size: 14px; color: #777'>" + subtitle2 + "</span>",
+	vegaEmbed("#population-distribution", {
+		"title": {
+			"text": "Population Distribution",
+			"fontSize": 24,
+			"subtitle": subtitle,
+			"subtitleColor": "#555",
+			"subtitleFontSize": 14
+		},
+		"$schema": "https://vega.github.io/schema/vega-lite/v4.json",
+		"layer": [getHistogramPlotSpec(binData(originalDistribution))],
+		"width": 700
 	});
 
 	// Compute alignment with ideal Normal curve.
 	const alignment = computeAlignment(samplingDistribution, theoreticalMean, theoreticalStdDev);
 	const alignmentPercentage = (alignment * 100).toFixed(2);
-	$("#alignment").text(`Alignment: ${alignmentPercentage} %`);
+
+	// Plot sampling distribution.
+	const subtitle2 = [
+		`μ = ${samplingMean.toFixed(2)}, σ = ${samplingStdDev.toFixed(2)}, n = ${samplingDistribution.length}`,
+		`normalcy = ${alignmentPercentage}%`
+	];
+
+	const samplingFrequencies = binData(samplingDistribution);
+	vegaEmbed("#sampling-distribution", {
+		"title": {
+			"text": "Sampling Distribution",
+			"fontSize": 24,
+			"subtitle": subtitle2,
+			"subtitleColor": "#555",
+			"subtitleFontSize": 14
+		},
+		"$schema": "https://vega.github.io/schema/vega-lite/v4.json",
+		"layer": [
+			getHistogramPlotSpec(samplingFrequencies),
+			getLinePlotSpec(samplingFrequencies)
+		],
+		"width": 700
+	});
 }
 
 main();
