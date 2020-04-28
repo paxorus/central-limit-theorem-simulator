@@ -1,0 +1,1 @@
+This directory contains open-source third-party software, [Guppy](https://guppy.js.org). The latest build in [NPM](https://www.npmjs.com/package/guppy-js) is entirely broken (text field and menu buttons unresponsive), so a copy of the live build from the website is downloaded here for use in this project.
