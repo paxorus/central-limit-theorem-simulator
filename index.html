@@ -12,27 +12,75 @@
 	<script src="third-party/guppy-js/guppy.min.js"></script>
 
 	<style>
-		body {font-family: sans-serif;}
+		html {height: 100%;}
+		body {font-family: sans-serif; margin: 0; height: 100%;}
+		#control-panel {background-color: #10485C; width: 300px; height: 100%; float: left; color: white; padding-top: 20px;}
+		#control-panel center label {display: inline-block; margin-top: 10px; margin-bottom: 3px;}
+
+		.button {
+			border: #2BE773 2px solid;
+			border-radius: 25px;
+			display: inline-block;
+			background-color: #469C4A;
+			color: white;
+			cursor: pointer;
+			margin-top: 5px;
+			padding: 10px 20px;
+			user-select: none;
+		}
+		@keyframes button-hover {
+			from {border: #2BE773 2px solid;}
+			to {border: #47A9FF 2px solid;}
+		}
+		.button:hover {
+			animation: button-hover 0.5s infinite alternate;
+		}
+		.button:active {
+			animation-play-state: paused;
+		}
 	</style>
 </head>
 <body>
 
-<center>
-	<div id="formula-editor" style="width: 400px"></div>
-	<div id="population-distribution"></div>
-	<div id="sampling-distribution" style="margin-top: 20px"></div>
-</center>
+<div id="control-panel">
+	<center>
+	<b>Population Distribution Function</b>
 
+	<!-- Formula editor -->
+	<div id="formula-editor" style="width: 250px"></div>
+	
+	<!-- Size of original distribution; any number works -->
+	<b><label for="population-size">Size of population =</label></b>
+	<br /><input type="number" id="population-size" value="100" min="0">
+	<br />
+
+	<div class="button" onclick="generatePopulationDistribution()">Generate Population Distribution</div>
+	
+	<!-- Size of sample from means to sampling distribution; approaches Infinity, ideal resolution after 100,000 -->
+	<b><label for="population-draws">Number of samples =</label></b><input type="number" id="population-draws" value="100000" min="0">
+	<br />
+	<!-- Size of sample from original distribution to mean; minimal impact to sampling distribution after 10 -->
+	<b><label for="draw-size">Size of each sample =</label></b><input type="number" id="draw-size" value="100" min="0">
+
+	<div class="button" onclick="generateSamplingDistribution()">Generate Sampling Distribution</div>
+	</center>
+</div>
+<div style="position: absolute; left: 300px; float: left">
+	<div id="population-distribution" style="margin-top: 30px"></div>
+	<div id="sampling-distribution" style="margin-top: 40px"></div>
+</div>
 
 <script>
+const GUPPY_INITIAL_MATH_SYMBOLS = ["norm", "utf8", "text", "sym_name", "abs", "eval", "sqrt", "paren", "floor", "factorial", "exp", "sub", "frac", "int", "defi", "deriv", "sum", "prod", "root", "vec", "point", "mat", "*", "infinity", "sin", "cos", "tan", "sec", "csc", "cot", "arcsin", "arccos", "arctan", "sinh", "cosh", "tanh", "log", "ln", "banana", "pineapple", "mango", "kiwi", "alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "xi", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega", "Gamma", "Delta", "Theta", "Lambda", "Xi", "Pi", "Sigma", "Phi", "Psi", "Omega", "equal", "leq", "less", "geq", "greater", "neq"];
+const MATH_EDITOR_VALID_SYMBOL_SET = new Set(["abs", "sqrt", "paren", "exp", "frac", "sin", "cos", "tan", "log", "ln"]);
 
-const ORIGINAL_DISTRIBUTION_POPULATION_SIZE = 100;// Size of original distribution; any number works
-const ORIGINAL_DISTRIBUTION_SAMPLE_SIZE = 100;// Size of sample from original distribution to mean; minimal impact to sampling distribution after 10
-const SAMPLING_DISTRIBUTION_SAMPLE_SIZE = 1e5;// Size of sample from means to sampling distribution; approaches Infinity, ideal resolution after 100,000
+function getUserInputNumber(id) {
+	return parseInt(document.getElementById(id).value, 10);
+}
 
-function sample(distribution) {
+function sample(distribution, sampleSize) {
 	const sample = [];
-	for (let i = 0; i < ORIGINAL_DISTRIBUTION_SAMPLE_SIZE; i ++) {
+	for (let i = 0; i < sampleSize; i ++) {
 		sample.push(distribution[Math.floor(Math.random() * distribution.length)]);
 	}
 	return sample;
@@ -68,7 +116,7 @@ function normalPdf(x, mu, sigma) {
 	return Math.pow(Math.E, exponent) / (sigma * Math.sqrt(2 * Math.PI));
 }
 
-function computeAlignment(sampling, theoreticalMean, theoreticalStdDev) {
+function computeAlignment(sampling, theoreticalMean, theoreticalStdDev, SAMPLING_DISTRIBUTION_SAMPLE_SIZE) {
 	const binWidth = sampling[0].end - sampling[0].start;
 
 	const mu = theoreticalMean;
@@ -142,33 +190,24 @@ function getLinePlotSpec(lineData) {
 	};
 }
 
-function main() {
-	const guppy = new Guppy("formula-editor");
-	
+function generatePopulationDistribution() {
+	const {guppy} = window.globalData;
+	const ORIGINAL_DISTRIBUTION_POPULATION_SIZE = getUserInputNumber("population-size");
 
-	// Skewed-right distribution
+	// Generate population distribution.
+	const populationFunction = guppy.func();
 	const originalDistribution = [];
-	for (let i = 0; i < ORIGINAL_DISTRIBUTION_POPULATION_SIZE; i ++) {
-		originalDistribution.push(i * i);
+	for (let x = 0; x < ORIGINAL_DISTRIBUTION_POPULATION_SIZE; x ++) {
+		originalDistribution.push(populationFunction({x}));
 	}
 
-	// Generate sampling distribution.
-	const samplingDistribution = [];
-	for (let i = 0; i < SAMPLING_DISTRIBUTION_SAMPLE_SIZE; i ++) {
-		const sampleMean = mean(sample(originalDistribution));
-		samplingDistribution.push(sampleMean);
-	}
-
-	const theoreticalMean = mean(originalDistribution);
-	const originalStdDev = standardDeviation(originalDistribution, theoreticalMean);
-	const theoreticalStdDev = originalStdDev / Math.sqrt(ORIGINAL_DISTRIBUTION_SAMPLE_SIZE);
-	const samplingMean = mean(samplingDistribution);
-	const samplingStdDev = standardDeviation(samplingDistribution, samplingMean);
+	// Compute stats.
+	const originalMean = mean(originalDistribution);
+	const originalStdDev = standardDeviation(originalDistribution, originalMean);
 
 	// Plot population distribution.
 	const subtitle = [
-		`μ = ${theoreticalMean.toFixed(2)}, σ = ${originalStdDev.toFixed(2)}, n = ${originalDistribution.length}`,
-		`σ / √(nMeans) = ${theoreticalStdDev.toFixed(2)}`
+		`μ = ${originalMean.toFixed(2)}, σ = ${originalStdDev.toFixed(2)}, n = ${originalDistribution.length}`
 	];
 
 	vegaEmbed("#population-distribution", {
@@ -184,15 +223,41 @@ function main() {
 		"width": 700
 	});
 
+	window.globalData = {
+		...window.globalData,
+		originalDistribution,
+		originalMean,
+		originalStdDev
+	};
+}
+
+function generateSamplingDistribution() {
+	const {originalDistribution, originalMean, originalStdDev} = window.globalData;
+	const numberOfPopulationDraws = getUserInputNumber("population-draws");
+	const drawSize = getUserInputNumber("draw-size");
+
+	// Generate sampling distribution.
+	const samplingDistribution = [];
+	for (let i = 0; i < numberOfPopulationDraws; i ++) {
+		const sampleMean = mean(sample(originalDistribution, drawSize));
+		samplingDistribution.push(sampleMean);
+	}
+
+	const samplingMean = mean(samplingDistribution);
+	const samplingStdDev = standardDeviation(samplingDistribution, samplingMean);
+	const theoreticalMean = originalMean;
+	const theoreticalStdDev = originalStdDev / Math.sqrt(drawSize);
+
 	const samplingFrequencies = binData(samplingDistribution);
 
 	// Compute alignment with ideal Normal curve.
-	const alignment = computeAlignment(samplingFrequencies, theoreticalMean, theoreticalStdDev);
+	const alignment = computeAlignment(samplingFrequencies, theoreticalMean, theoreticalStdDev, numberOfPopulationDraws);
 	const alignmentPercentage = (alignment * 100).toFixed(2);
 
 	// Plot sampling distribution.
-	const subtitle2 = [
+	const subtitle = [
 		`μ = ${samplingMean.toFixed(2)}, σ = ${samplingStdDev.toFixed(2)}, n = ${samplingDistribution.length}`,
+		`σ / √(nMeans) = ${theoreticalStdDev.toFixed(2)}`,
 		`normalcy = ${alignmentPercentage}%`
 	];
 
@@ -200,7 +265,7 @@ function main() {
 		"title": {
 			"text": "Sampling Distribution",
 			"fontSize": 24,
-			"subtitle": subtitle2,
+			"subtitle": subtitle,
 			"subtitleColor": "#555",
 			"subtitleFontSize": 14
 		},
@@ -211,6 +276,24 @@ function main() {
 		],
 		"width": 700
 	});
+
+}
+
+function main() {
+	// Initialize math editor.
+	GUPPY_INITIAL_MATH_SYMBOLS
+		.filter(symbolName => ! MATH_EDITOR_VALID_SYMBOL_SET.has(symbolName))
+		.forEach(symbolName => Guppy.remove_global_symbol(symbolName));
+
+	const guppy = new Guppy("formula-editor");
+	guppy.import_text("1 / (x + 1)");
+	guppy.render();
+
+	window.globalData = {guppy};
+
+
+
+
 }
 
 main();
