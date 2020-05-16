@@ -1,0 +1,26 @@
+html {height: 100%;}
+body {font-family: sans-serif; margin: 0; height: 100%;}
+#control-panel {background-color: #10485C; width: 300px; height: 100%; float: left; color: white; padding-top: 20px;}
+#control-panel center label {display: inline-block; margin-top: 10px; margin-bottom: 3px;}
+
+.button {
+	border: #2BE773 2px solid;
+	border-radius: 25px;
+	display: inline-block;
+	background-color: #469C4A;
+	color: white;
+	cursor: pointer;
+	margin-top: 5px;
+	padding: 10px 20px;
+	user-select: none;
+}
+@keyframes button-hover {
+	from {border: #2BE773 2px solid;}
+	to {border: #47A9FF 2px solid;}
+}
+.button:hover {
+	animation: button-hover 0.5s infinite alternate;
+}
+.button:active {
+	animation-play-state: paused;
+}
