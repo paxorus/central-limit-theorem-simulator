@@ -3,6 +3,9 @@ body {font-family: sans-serif; margin: 0; height: 100%;}
 #control-panel {background-color: #10485C; width: 300px; height: 100%; float: left; color: white; padding-top: 20px;}
 #control-panel center label {display: inline-block; margin-top: 10px; margin-bottom: 3px;}
 
+#error-message-box {color: #FF6A6A; margin-top: 5px}
+#description {text-align: left; padding: 0 15px; font-size: 14px;}
+
 .button {
 	border: #2BE773 2px solid;
 	border-radius: 25px;
@@ -23,4 +26,14 @@ body {font-family: sans-serif; margin: 0; height: 100%;}
 }
 .button:active {
 	animation-play-state: paused;
+}
+
+.button-disabled {
+	border-color: #999;
+	background-color: #444;
+	color: #999;
+	cursor: initial;
+}
+.button-disabled:hover {
+	animation: none;
 }

@@ -18,23 +18,30 @@
 
 <div id="control-panel">
 	<center>
-	<b>Population Distribution Function</b>
+	<div id="description">
+	<img src="info-icon.png" style="width: 14px">
+	Simulate the Central Limit Theorem of statistics by generating a distribution of your choice, then drawing from that population many times and plotting the sampling distribution (the distribution of the means of the samples).</div>
+
+	<div style="height: 1px; margin: 20px 0; width: 250px; background-color: white"></div>
 
 	<!-- Formula editor -->
+	<b>Population Distribution Function</b>
+	<br /><span style="font-size: 14px">An expression in terms of x.</span>
 	<div id="formula-editor" style="width: 250px"></div>
+	<div id="error-message-box"></div>
 	
 	<!-- Size of original distribution; any number works -->
-	<b><label for="population-size">Size of population =</label></b>
-	<br /><input type="number" id="population-size" value="100" min="0">
+	<b><label for="population-size">Size of Population?</label></b>
+	<br /><input type="number" id="population-size" value="100" min="0" oninput="handlePopulationInputChange()">
 	<br />
 
-	<div class="button" onclick="generatePopulationDistribution()">Generate Population Distribution</div>
+	<div class="button button-disabled" id="generate-population" onclick="handleGeneratePopulationDistribution()">Generate Population Distribution</div>
 	
 	<!-- Size of sample from means to sampling distribution; approaches Infinity, ideal resolution after 100,000 -->
-	<b><label for="population-draws">Number of samples =</label></b><input type="number" id="population-draws" value="100000" min="0">
+	<b><label for="population-draws">How Many Samples?</label></b><input type="number" id="population-draws" value="10000" min="0">
 	<br />
 	<!-- Size of sample from original distribution to mean; minimal impact to sampling distribution after 10 -->
-	<b><label for="draw-size">Size of each sample =</label></b><input type="number" id="draw-size" value="100" min="0">
+	<b><label for="draw-size">Size of Each Sample?</label></b><input type="number" id="draw-size" value="100" min="0">
 
 	<div class="button" onclick="generateSamplingDistribution()">Generate Sampling Distribution</div>
 	</center>
@@ -60,10 +67,43 @@ function initializeMathEditor() {
 	guppy.import_text("x^2");
 	guppy.render();
 
+	Guppy.event("change", () => {
+		$("#error-message-box").text("");
+		handlePopulationInputChange();
+	});
+
 	window.globalData = {guppy};
 }
 
+let buttonEnabled = false;
+function handleGeneratePopulationDistribution() {
+	if (buttonEnabled) {
+		try {
+			generatePopulationDistribution();
+		} catch (err) {
+			switch (err.cause) {
+				case "guppy-invalid-syntax":
+					$("#error-message-box").text("Invalid syntax");
+					break;
+
+				case "guppy-undefined-symbol":
+					$("#error-message-box").text("Could not recognize symbol: " + err.data);
+					break;
+			}
+		}
+	}
+	buttonEnabled = false;
+	$("#generate-population").toggleClass("button-disabled", true);
+}
+
+function handlePopulationInputChange() {
+	buttonEnabled = true;
+	$("#generate-population").toggleClass("button-disabled", false);
+}
+
 initializeMathEditor();
+generatePopulationDistribution();
+generateSamplingDistribution();
 </script>
 </body>
 </html>

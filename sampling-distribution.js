@@ -114,15 +114,35 @@ function getLinePlotSpec(lineData) {
 	};
 }
 
+function compileGuppyFunction(guppy) {
+	try {
+		return guppy.func({var: ([variableName]) => function (valueMap) {
+			if (variableName in valueMap) {
+				return valueMap[variableName];
+			}
+
+			const err = new Error();
+			err.cause = "guppy-undefined-symbol";
+			err.data = variableName;
+			throw err;
+		}});
+	} catch (err) {
+		err.cause = "guppy-invalid-syntax";
+		throw err;
+	}
+}
+
 function generatePopulationDistribution() {
 	const {guppy} = window.globalData;
 	const ORIGINAL_DISTRIBUTION_POPULATION_SIZE = getUserInputNumber("population-size");
 
-	// Generate population distribution.
-	const populationFunction = guppy.func();
+	// Generate population distribution by interpreting Guppy function.
+	const populationFunction = compileGuppyFunction(guppy);
+
 	const originalDistribution = [];
 	for (let x = 0; x < ORIGINAL_DISTRIBUTION_POPULATION_SIZE; x ++) {
-		originalDistribution.push(populationFunction({x}));
+		const y = populationFunction({x});
+		originalDistribution.push(y);
 	}
 
 	// Compute stats.
