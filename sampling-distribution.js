@@ -74,15 +74,15 @@ function binData(dataArray) {
 		bins[binIndex] ++;
 	});
 
-	return bins.map((x, i) => ({
+	return [binWidth, bins.map((x, i) => ({
 		start: i * binWidth + min,
 		center: (i + 0.5) * binWidth + min,
 		end: (i + 1) * binWidth + min,
 		count: x
-	}));
+	}))];
 }
 
-function getHistogramPlotSpec(histogramData) {
+function getHistogramPlotSpec([binWidth, histogramData]) {
 	return {
 		"data": {
 			"values": histogramData
@@ -91,7 +91,7 @@ function getHistogramPlotSpec(histogramData) {
 		"encoding": {
 			"x": {
 				"field": "start",
-				"bin": {"binned": true, "step": 2},
+				"bin": {"binned": true, "step": binWidth},
 				"type": "quantitative",
 				"axis": {"title": null}
 			},
@@ -192,7 +192,7 @@ function generateSamplingDistribution() {
 	const theoreticalMean = originalMean;
 	const theoreticalStdDev = originalStdDev / Math.sqrt(drawSize);
 
-	const samplingFrequencies = binData(samplingDistribution);
+	const [binWidth, samplingFrequencies] = binData(samplingDistribution);
 
 	// Compute alignment with ideal Normal curve.
 	const alignment = computeAlignment(samplingFrequencies, theoreticalMean, theoreticalStdDev, numberOfPopulationDraws);
@@ -215,7 +215,7 @@ function generateSamplingDistribution() {
 		},
 		"$schema": "https://vega.github.io/schema/vega-lite/v4.json",
 		"layer": [
-			getHistogramPlotSpec(samplingFrequencies),
+			getHistogramPlotSpec([binWidth, samplingFrequencies]),
 			getLinePlotSpec(samplingFrequencies)
 		],
 		"width": 700
